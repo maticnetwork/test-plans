@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -145,7 +145,7 @@ func (p *PubsubNode) Run(runtime time.Duration, waitForReadyStateThenConnectAsyn
 	}
 
 	// join initial topics
-	p.runenv.RecordMessage("Joining initial topics")
+	p.runenv.RecordMessage("Joining initial topics, count: %d", len(p.cfg.Topics))
 	for _, t := range p.cfg.Topics {
 		go p.joinTopic(t, runtime)
 	}
@@ -160,6 +160,7 @@ func (p *PubsubNode) Run(runtime time.Duration, waitForReadyStateThenConnectAsyn
 
 	// ensure we have at least enough peers to fill a mesh after warmup period
 	npeers := len(p.h.Network().Peers())
+	p.runenv.RecordMessage("Number of peers in mesh-%d", npeers)
 	if npeers < pubsub.GossipSubD {
 		panic(fmt.Errorf("not enough peers after warmup period. Need at least D=%d, have %d", pubsub.GossipSubD, npeers))
 	}
@@ -173,6 +174,7 @@ func (p *PubsubNode) Run(runtime time.Duration, waitForReadyStateThenConnectAsyn
 	}
 
 	// if we're publishing, wait until we've sent all our messages or the context expires
+	p.runenv.RecordMessage("Is %s publishing? %t", p.h.ID().Pretty(), p.cfg.Publisher)
 	if p.cfg.Publisher {
 		donech := make(chan struct{}, 1)
 		go func() {
@@ -263,19 +265,24 @@ func (p *PubsubNode) makeMessage(seq int64, size uint64) ([]byte, error) {
 		seq    int64
 		data   []byte
 	}
-	data := make([]byte, size)
-	rand.Read(data)
+	data := []byte(strconv.Itoa(int(time.Now().Unix())))
 	m := msg{sender: p.h.ID().Pretty(), seq: seq, data: data}
+	p.log("sending message from %s with seq %d: %s", m.sender, m.seq, string(m.data))
 	return json.Marshal(m)
 }
 
 func (p *PubsubNode) sendMsg(seq int64, ts *topicState) {
-	msg, err := p.makeMessage(seq, uint64(ts.cfg.MessageSize))
-	if err != nil {
-		p.log("error making message for topic %s: %s", ts.cfg.Id, err)
-		return
-	}
-	err = ts.topic.Publish(p.ctx, msg)
+	// Ignore this message structure for now, instead use simple byte[]
+	/*
+		msg, err := p.makeMessage(seq, uint64(ts.cfg.MessageSize))
+		if err != nil {
+			p.log("error making message for topic %s: %s", ts.cfg.Id, err)
+			return
+		}
+	*/
+	// Set the current timestamp as message
+	msg := []byte(strconv.Itoa(int(time.Now().Unix())))
+	err := ts.topic.Publish(p.ctx, msg)
 	if err != nil && err != context.Canceled {
 		p.log("error publishing to %s: %s", ts.cfg.Id, err)
 		return
@@ -305,12 +312,26 @@ func (p *PubsubNode) publishLoop(ts *topicState) {
 
 func (p *PubsubNode) consumeTopic(ts *topicState) {
 	for {
-		_, err := ts.sub.Next(p.ctx)
+		msg, err := ts.sub.Next(p.ctx)
 		if err != nil && err != context.Canceled {
 			p.log("error reading from %s: %s", ts.cfg.Id, err)
 			return
 		}
-		//p.log("got message on topic %s from %s\n", ts.cfg.Id, msg.ReceivedFrom.Pretty())
+		now := time.Now().Unix()
+		sent, _ := strconv.Atoi(string(msg.Data))
+		p.log("received message: %s", string(msg.Data))
+		p.log("now: %d, sent: %d, elapsed: %s", now, sent, time.Duration(now-int64(sent))*time.Millisecond)
+
+		// save log
+		log := PubsubMessageLog{
+			sender:   msg.ReceivedFrom.Pretty(),
+			receiver: p.h.ID().Pretty(),
+			sendTime: sent,
+			recvTime: int(now),
+			elapsed:  time.Duration(now-int64(sent)) * time.Millisecond,
+			message:  string(msg.Data),
+		}
+		postMessageLog(ts.topic.String(), msg.ReceivedFrom.Pretty(), string(msg.Seqno), log)
 
 		select {
 		case <-ts.done:

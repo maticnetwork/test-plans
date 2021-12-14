@@ -11,7 +11,7 @@ import (
 
 // setupNetwork instructs the sidecar (if enabled) to setup the network for this
 // test case.
-func setupNetwork(ctx context.Context, runenv *runtime.RunEnv, netParams NetworkParams, netclient *network.Client) error {
+func setupNetwork(ctx context.Context, runenv *runtime.RunEnv, netParams NetworkParams, netclient *network.Client, instanceConfig *InstanceConfig) error {
 	if !runenv.TestSidecar {
 		return nil
 	}
@@ -24,12 +24,12 @@ func setupNetwork(ctx context.Context, runenv *runtime.RunEnv, netParams Network
 	}
 	runenv.RecordMessage("Network init complete")
 
-	latency := netParams.latency
-	if netParams.latencyMax > 0 {
-		// If a maximum latency is supplied, choose a random latency between
-		// latency and max latency
-		latency += time.Duration(rand.Float64() * float64(netParams.latencyMax-latency))
-	}
+	latency := instanceConfig.latency
+	// if netParams.latencyMax > 0 {
+	// 	// If a maximum latency is supplied, choose a random latency between
+	// 	// latency and max latency
+	// 	latency += time.Duration(rand.Float64() * float64(netParams.latencyMax-latency))
+	// }
 
 	config := &network.Config{
 		Network: "default",
@@ -50,6 +50,6 @@ func setupNetwork(ctx context.Context, runenv *runtime.RunEnv, netParams Network
 		return err
 	}
 
-	runenv.RecordMessage("egress: %s latency (%d%% jitter) and %dMB bandwidth", netParams.latency, netParams.jitterPct, netParams.bandwidthMB)
+	runenv.RecordMessage("instance: %d, egress: %s latency (%d%% jitter) and %dMB bandwidth", instanceConfig.id, latency, netParams.jitterPct, netParams.bandwidthMB)
 	return nil
 }

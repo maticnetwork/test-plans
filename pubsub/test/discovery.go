@@ -177,12 +177,12 @@ type PeerSubscriber struct {
 	lk                  sync.Mutex
 	peers               []PeerRegistration
 	runenv              *runtime.RunEnv
-	client              *tgsync.Client
+	client              tgsync.Client
 	containerCount      int
 	containerNodesTotal int
 }
 
-func NewPeerSubscriber(ctx context.Context, runenv *runtime.RunEnv, client *tgsync.Client, containerCount int, containerNodesTotal int) *PeerSubscriber {
+func NewPeerSubscriber(ctx context.Context, runenv *runtime.RunEnv, client tgsync.Client, containerCount int, containerNodesTotal int) *PeerSubscriber {
 	return &PeerSubscriber{
 		runenv:              runenv,
 		client:              client,
@@ -311,6 +311,7 @@ func (s *SyncDiscovery) ConnectTopology(ctx context.Context, delay time.Duration
 		s.runenv.RecordMessage("connecting to peers after %s", delay)
 	}
 
+	s.runenv.RecordMessage("connecting to-%d peers in topology", len(s.allPeers))
 	selected := s.topology.SelectPeers(s.h.ID(), s.allPeers)
 	if len(selected) == 0 {
 		panic("topology selected zero peers. so lonely!!!")

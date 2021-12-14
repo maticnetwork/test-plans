@@ -30,6 +30,8 @@ type HeartbeatParams struct {
 
 type NetworkParams struct {
 	latency     time.Duration
+	latency1    time.Duration
+	latency2    time.Duration
 	latencyMax  time.Duration
 	jitterPct   int
 	bandwidthMB int
@@ -88,7 +90,6 @@ type TopicScoreParams struct {
 	InvalidMessageDeliveriesWeight, InvalidMessageDeliveriesDecay float64
 }
 
-
 type testParams struct {
 	heartbeat HeartbeatParams
 	setup     time.Duration
@@ -126,6 +127,7 @@ func durationParam(runenv *runtime.RunEnv, name string) time.Duration {
 		runenv.RecordMessage("duration param %s not set, defaulting to zero", name)
 		return 0
 	}
+	runenv.RecordMessage("duration param %s set to %s", name, runenv.StringParam(name))
 	return parseDuration(runenv.StringParam(name))
 }
 
