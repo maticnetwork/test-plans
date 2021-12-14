@@ -265,7 +265,7 @@ func (p *PubsubNode) makeMessage(seq int64, size uint64) ([]byte, error) {
 		seq    int64
 		data   []byte
 	}
-	data := []byte(strconv.Itoa(int(time.Now().Unix())))
+	data := []byte(strconv.Itoa(int(time.Now().UnixNano())))
 	m := msg{sender: p.h.ID().Pretty(), seq: seq, data: data}
 	p.log("sending message from %s with seq %d: %s", m.sender, m.seq, string(m.data))
 	return json.Marshal(m)
@@ -281,7 +281,7 @@ func (p *PubsubNode) sendMsg(seq int64, ts *topicState) {
 		}
 	*/
 	// Set the current timestamp as message
-	msg := []byte(strconv.Itoa(int(time.Now().Unix())))
+	msg := []byte(strconv.Itoa(int(time.Now().UnixNano())))
 	err := ts.topic.Publish(p.ctx, msg)
 	if err != nil && err != context.Canceled {
 		p.log("error publishing to %s: %s", ts.cfg.Id, err)
@@ -317,10 +317,10 @@ func (p *PubsubNode) consumeTopic(ts *topicState) {
 			p.log("error reading from %s: %s", ts.cfg.Id, err)
 			return
 		}
-		now := time.Now().Unix()
+		now := time.Now().UnixNano()
 		sent, _ := strconv.Atoi(string(msg.Data))
 		p.log("received message: %s", string(msg.Data))
-		p.log("now: %d, sent: %d, elapsed: %s", now, sent, time.Duration(now-int64(sent))*time.Second)
+		p.log("now: %d, sent: %d, elapsed: %s", now, sent, time.Duration(now-int64(sent))*time.Nanosecond)
 
 		// save log
 		log := PubsubMessageLog{
@@ -328,7 +328,7 @@ func (p *PubsubNode) consumeTopic(ts *topicState) {
 			receiver: p.h.ID().Pretty(),
 			sendTime: sent,
 			recvTime: int(now),
-			elapsed:  time.Duration(now-int64(sent)) * time.Millisecond,
+			elapsed:  time.Duration(now-int64(sent)) * time.Nanosecond,
 			message:  string(msg.Data),
 		}
 		postMessageLog(ts.topic.String(), msg.ReceivedFrom.Pretty(), string(msg.Seqno), log)
