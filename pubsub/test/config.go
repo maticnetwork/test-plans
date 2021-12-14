@@ -67,6 +67,10 @@ func getInstanceConfig(id int) (*InstanceConfig, error) {
 }
 
 func postMessageLog(topic, peer, seqNo string, log PubsubMessageLog) {
+	// check if topic exists in map and if not, create a new map
+	if _, ok := MessageLog[topic]; !ok {
+		MessageLog[topic] = make(map[string]PubsubMessageLog)
+	}
 	MessageLog[topic][peer+seqNo] = log
 }
 
