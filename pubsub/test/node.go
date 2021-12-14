@@ -320,7 +320,7 @@ func (p *PubsubNode) consumeTopic(ts *topicState) {
 		now := time.Now().Unix()
 		sent, _ := strconv.Atoi(string(msg.Data))
 		p.log("received message: %s", string(msg.Data))
-		p.log("now: %d, sent: %d, elapsed: %s", now, sent, time.Duration(now-int64(sent))*time.Millisecond)
+		p.log("now: %d, sent: %d, elapsed: %s", now, sent, time.Duration(now-int64(sent))*time.Second)
 
 		// save log
 		log := PubsubMessageLog{
